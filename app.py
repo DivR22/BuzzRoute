@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import pymysql
 from datetime import datetime, timedelta
+from geopy.distance import geodesic  # New import for distance calculation
 
 app = Flask(__name__)
 
@@ -30,6 +31,40 @@ def generate_time_slots():
     
     return time_slots
 
+def calculate_centroid(coordinates):
+    """Calculates the centroid of a group of coordinates."""
+    if not coordinates:
+        return None
+
+    lat_sum = sum(coord[0] for coord in coordinates)
+    long_sum = sum(coord[1] for coord in coordinates)
+
+    centroid_lat = lat_sum / len(coordinates)
+    centroid_long = long_sum / len(coordinates)
+
+    return (centroid_lat, centroid_long)
+
+def group_users_by_radius(user_coords, radius_km=5):
+    """Groups users based on proximity and calculates centroids."""
+    centroids = []
+    grouped_users = []
+
+    while user_coords:
+        current_user = user_coords.pop(0)
+        group = [current_user]
+
+        for other_user in user_coords[:]:
+            distance = geodesic(current_user, other_user).km
+            if distance <= radius_km:
+                group.append(other_user)
+                user_coords.remove(other_user)
+
+        centroid = calculate_centroid(group)
+        centroids.append(centroid)
+        grouped_users.append(group)
+
+    return centroids, grouped_users
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     time_slots = generate_time_slots()  # Generate time slots dynamically
@@ -40,10 +75,10 @@ def index():
         email = request.form.get("email")
         age = request.form.get("age")
         time_slot = request.form.get("time_slot")
-        source_lat = request.form.get("source_lat")
-        source_long = request.form.get("source_long")
-        dest_lat = request.form.get("dest_lat")
-        dest_long = request.form.get("dest_long")
+        source_lat = float(request.form.get("source_lat"))
+        source_long = float(request.form.get("source_long"))
+        dest_lat = float(request.form.get("dest_lat"))
+        dest_long = float(request.form.get("dest_long"))
 
         # Insert into the database
         try:
@@ -56,32 +91,25 @@ def index():
             )
             conn.commit()
 
-            # Redirect to the result page and pass the data
-            return redirect(url_for('result', first_name=first_name, last_name=last_name, email=email, age=age,
-                                    time_slot=time_slot, source_lat=source_lat, source_long=source_long,
-                                    dest_lat=dest_lat, dest_long=dest_long))
+            return redirect(url_for('results'))
         except pymysql.MySQLError as err:
             return f"Failed to submit data: {err}"
 
     return render_template("index.html", api_key=gmaps_api_key, time_slots=time_slots)
 
-@app.route("/result")
-def result():
-    # Get the data from the URL parameters
-    first_name = request.args.get('first_name')
-    last_name = request.args.get('last_name')
-    email = request.args.get('email')
-    age = request.args.get('age')
-    time_slot = request.args.get('time_slot')
-    source_lat = request.args.get('source_lat')
-    source_long = request.args.get('source_long')
-    dest_lat = request.args.get('dest_lat')
-    dest_long = request.args.get('dest_long')
+@app.route("/results", methods=["GET"])
+def results():
+    # Fetch all user coordinates from the database
+    cursor.execute("SELECT source_lat, source_long FROM sample_table")
+    users = cursor.fetchall()
 
-    # Render the result page
-    return render_template("result.html", first_name=first_name, last_name=last_name, email=email, age=age,
-                           time_slot=time_slot, source_lat=source_lat, source_long=source_long,
-                           dest_lat=dest_lat, dest_long=dest_long)
+    # Convert users to a list of (latitude, longitude) tuples
+    user_coords = [(float(lat), float(lng)) for lat, lng in users]
+
+    # Group users and calculate centroids
+    centroids, grouped_users = group_users_by_radius(user_coords, radius_km=5)
+
+    return render_template("result.html", centroids=centroids, grouped_users=grouped_users)
 
 if __name__ == "__main__":
     app.run(debug=True)
