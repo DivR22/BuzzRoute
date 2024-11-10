@@ -1,13 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for
+ from flask import Flask, render_template, request, redirect, url_for
 from dotenv import load_dotenv
 import os
 import pymysql
 from datetime import datetime, timedelta
 from geopy.distance import geodesic  # New import for distance calculation
-from flask import Flask, render_template, request, redirect, url_for, jsonify
-from flask_socketio import SocketIO, emit
-import openai
-from dotenv import load_dotenv
 
 app = Flask(__name__)
 
@@ -34,23 +30,6 @@ def generate_time_slots():
         start_time += timedelta(minutes=30)
     
     return time_slots
-
-def get_chatbot_response(message):
-    if "centroid" in message.lower() or "cluster" in message.lower():
-        # Custom handling for BuzzRoute-specific questions
-        response_text = "Centroid calculations are based on geographical clustering. Please specify a radius or other parameters."
-        # You can add more specific responses here, or even integrate code to return real-time data if necessary.
-    else:
-        # Use OpenAI to process general questions
-        response = openai.Completion.create(
-            model="text-davinci-003",
-            prompt=f"Assist in route optimization and clustering: {message}",
-            max_tokens=150
-        )
-        response_text = response.choices[0].text.strip()
-    
-    return response_text
-
 
 def calculate_centroid(coordinates):
     """Calculates the centroid of a group of coordinates."""
@@ -85,42 +64,6 @@ def group_users_by_radius(user_coords, radius_km=5):
         grouped_users.append(group)
 
     return centroids, grouped_users
-
-app = Flask(__name__)
-socketio = SocketIO(app)
-load_dotenv()
-
-# OpenAI API Key
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-# Existing code...
-# Code for database connection, time slots, and centroid detection...
-
-# Chatbot route for rendering the chat page
-@app.route("/chatbot")
-def chatbot():
-    return render_template("chatbot.html")
-
-# Function to process chatbot responses based on user input
-def get_chatbot_response(message):
-    # Process the message here
-    # For simplicity, you can use GPT to help analyze and respond
-    response = openai.Completion.create(
-        model="text-davinci-003",
-        prompt=f"Assist in route optimization for transport. Given clusters and centroids, suggest optimal stops based on this input: {message}",
-        max_tokens=150
-    )
-    return response.choices[0].text.strip()
-
-# WebSocket event for receiving and sending messages
-@socketio.on("message")
-def handle_message(data):
-    message = data["message"]
-    response = get_chatbot_response(message)
-    emit("response", {"message": response}, broadcast=True)
-
-
-
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -168,8 +111,5 @@ def results():
 
     return render_template("result.html", centroids=centroids, grouped_users=grouped_users)
 
-
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
-
-
+    app.run(debug=True)
