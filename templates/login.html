@@ -1,0 +1,136 @@
+{% extends 'app.html' %}
+{% block content %}
+
+<!-- Login Card Container -->
+<div class="container">
+    <div class="card-container">
+        <div class="card">
+            <div class="card-content login">
+                <h3>Login</h3>
+
+                <!-- Flash messages for errors -->
+                {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="alert alert-danger">
+                        <ul>
+                            {% for message in messages %}
+                                <li>{{ message }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="/login">
+                    {{ form.hidden_tag() }}
+                    <div class="form-group">
+                        {{ form.email.label(for="email") }}
+                        {{ form.email(id="email", class="form-control") }}
+                        {% if form.email.errors %}
+                            <ul class="text-danger">
+                                {% for error in form.email.errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        {{ form.password.label(for="password") }}
+                        {{ form.password(id="password", class="form-control") }}
+                        {% if form.password.errors %}
+                            <ul class="text-danger">
+                                {% for error in form.password.errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                    {{ form.submit(class="btn btn-primary") }}
+                </form>
+                <br>
+                <p>Don't have an account? <a href="/register">Sign Up</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Background and Container Styles */
+body {
+    background: linear-gradient(135deg, #3b82f6, #9333ea);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.card-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80vh;
+    perspective: 1000px;
+}
+
+.card {
+    width: 400px;
+    padding: 2.5rem 2rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    position: relative;
+}
+
+/* Typography */
+h3 {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Input and Button Styles */
+form input {
+    width: 100%;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+    border: none;
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+form button {
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 5px;
+    background-color: #2563eb;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+form button:hover {
+    background-color: #1d4ed8;
+}
+
+p a {
+    color: #93c5fd;
+    text-decoration: underline;
+}
+</style>
+
+{% endblock %}

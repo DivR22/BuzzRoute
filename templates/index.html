@@ -1,140 +1,131 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>User Info Form</title>
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=places&callback=initAutocomplete" async defer></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        #map {
-            height: 400px;
-            width: 100%;
-        }
-        .map-container {
-            height: 400px;
-        }
-    </style>
-</head>
-<body style="background-color:#111;">
-    <div class="container mt-5 text-white">
-        <h2>User Info Form</h2>
-        <form method="POST" action="/">
-            <!-- Form Inputs -->
-            <div class="row">
-                <div class="col-md-6">
-                    <label for="first_name">First Name</label>
-                    <input type="text" class="form-control" id="first_name" name="first_name" required>
-                </div>
-                <div class="col-md-6">
-                    <label for="last_name">Last Name</label>
-                    <input type="text" class="form-control" id="last_name" name="last_name" required>
-                </div>
-            </div>
+{% extends 'app.html' %}
+{% block content %}
 
-            <div class="row mt-3">
-                <div class="col-md-6">
-                    <label for="email">Email</label>
-                    <input type="email" class="form-control" id="email" name="email" required>
-                </div>
-                <div class="col-md-6">
-                    <label for="age">Age</label>
-                    <input type="number" class="form-control" id="age" name="age" min="1" max="100" required>
-                </div>
-            </div>
-
-            <div class="row mt-3">
-                <div class="col-md-6">
-                    <label for="time_slot">Select Time Slot</label>
-                    <select id="time_slot" name="time_slot" class="form-control" required>
-                        {% for time in time_slots %}
-                            <option value="{{ time }}">{{ time }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
-            <div class="mt-4">
-                <h4>Source Location</h4>
-                <input id="source-input" class="form-control" type="text" placeholder="Search Source Location">
-                <div id="source-map" class="map-container"></div>
-                <input type="hidden" id="source_lat" name="source_lat">
-                <input type="hidden" id="source_long" name="source_long">
-            </div>
-
-            <div class="mt-4">
-                <h4>Destination Location</h4>
-                <input id="dest-input" class="form-control" type="text" placeholder="Search Destination Location">
-                <div id="dest-map" class="map-container"></div>
-                <input type="hidden" id="dest_lat" name="dest_lat">
-                <input type="hidden" id="dest_long" name="dest_long">
-            </div>
-
-            <button type="submit" class="btn btn-primary mt-4">Submit</button>
-        </form>
+<!-- Main Container for Home Page -->
+<div class="main-container">
+    <!-- Left-Aligned BuzzRoute Info Section -->
+    <div class="info-section">
+        <h1 class="home-title">BuzzRoute</h1>
+        <p class="home-description">Optimize your routes and enable efficient carpooling with intelligent depot planning and real-time data.</p>
+        <a href="/features" class="explore-btn">Explore Features</a>
     </div>
 
-    <script>
-        let sourceAutocomplete, destAutocomplete, sourceMap, destMap;
-        let sourceMarker, destMarker;
+    <!-- Circular Login and Sign-Up Buttons on Right Side -->
+    <div class="auth-buttons">
+        <button onclick="window.location.href='/login'" class="btn-login">Login</button>
+        <button onclick="window.location.href='/register'" class="btn-signup">Sign Up</button>
+    </div>
+</div>
 
-        function initAutocomplete() {
-            // Initialize the source map and autocomplete
-            sourceMap = new google.maps.Map(document.getElementById('source-map'), {
-                center: {lat: -33.8688, lng: 151.2195},
-                zoom: 13
-            });
-            sourceAutocomplete = new google.maps.places.Autocomplete(
-                document.getElementById('source-input'), {types: ['geocode']}
-            );
-            sourceAutocomplete.addListener('place_changed', function() {
-                const place = sourceAutocomplete.getPlace();
-                if (!place.geometry) {
-                    return;
-                }
-                sourceMap.setCenter(place.geometry.location);
-                sourceMap.setZoom(17);
+<style>
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Roboto', sans-serif;
+}
 
-                if (sourceMarker) {
-                    sourceMarker.setMap(null);
-                }
+body {
+    background: linear-gradient(135deg, #3b82f6, #9333ea);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+}
 
-                sourceMarker = new google.maps.Marker({
-                    map: sourceMap,
-                    position: place.geometry.location
-                });
+.main-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 85%;
+    max-width: 1200px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+}
 
-                document.getElementById('source_lat').value = place.geometry.location.lat();
-                document.getElementById('source_long').value = place.geometry.location.lng();
-            });
+/* Left-Aligned Info Section */
+.info-section {
+    width: 50%;
+}
 
-            // Initialize the destination map and autocomplete
-            destMap = new google.maps.Map(document.getElementById('dest-map'), {
-                center: {lat: -33.8688, lng: 151.2195},
-                zoom: 13
-            });
-            destAutocomplete = new google.maps.places.Autocomplete(
-                document.getElementById('dest-input'), {types: ['geocode']}
-            );
-            destAutocomplete.addListener('place_changed', function() {
-                const place = destAutocomplete.getPlace();
-                if (!place.geometry) {
-                    return;
-                }
-                destMap.setCenter(place.geometry.location);
-                destMap.setZoom(17);
+.home-title {
+    font-size: 4rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #ffffff;
+    text-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
+    margin-bottom: 1rem;
+}
 
-                if (destMarker) {
-                    destMarker.setMap(null);
-                }
+.home-description {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.9);
+}
 
-                destMarker = new google.maps.Marker({
-                    map: destMap,
-                    position: place.geometry.location
-                });
+/* Explore Features Button */
+.explore-btn {
+    display: inline-block;
+    padding: 0.8rem 1.5rem;
+    background-color: #2563eb;
+    color: #ffffff;
+    font-weight: 600;
+    text-transform: uppercase;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
 
-                document.getElementById('dest_lat').value = place.geometry.location.lat();
-                document.getElementById('dest_long').value = place.geometry.location.lng();
-            });
-        }
-    </script>
-</body>
-</html>
+.explore-btn:hover {
+    background-color: #1d4ed8;
+    transform: scale(1.05);
+}
+
+/* Circular Auth Buttons on Right Side */
+.auth-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    position: relative;
+    right: 0;
+    padding-top: 20px;
+}
+
+.auth-buttons button {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: #ffffff;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    border: none;
+}
+
+.btn-login {
+    background-color: #2563eb;
+}
+
+.btn-signup {
+    background-color: #9333ea;
+}
+
+.btn-login:hover {
+    background-color: #1e40af;
+    transform: scale(1.1);
+}
+
+.btn-signup:hover {
+    background-color: #7e22ce;
+    transform: scale(1.1);
+}
+</style>
+
+{% endblock %}
