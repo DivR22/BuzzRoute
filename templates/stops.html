@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Maps Route Finder</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=places"></script>
+    
+    <style>
+        #map-source, #map-destination, #map-route {
+            height: 400px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Google Maps Route Finder</h1>
+        
+        <!-- Form -->
+        <form action="/create_route" method="POST">
+            <div class="mb-4">
+                <h5>Select Source Location</h5>
+                <input id="source-search" class="form-control" type="text" placeholder="Search for source location">
+                <div id="map-source"></div>
+                <input type="hidden" id="source-lat" name="source_lat">
+                <input type="hidden" id="source-lng" name="source_lng">
+            </div>
+            
+            <div class="mb-4">
+                <h5>Select Destination Location</h5>
+                <input id="destination-search" class="form-control" type="text" placeholder="Search for destination location">
+                <div id="map-destination"></div>
+                <input type="hidden" id="destination-lat" name="destination_lat">
+                <input type="hidden" id="destination-lng" name="destination_lng">
+            </div>
+
+            <div class="text-center">
+                <button type="submit" class="btn btn-primary">Generate Route</button>
+            </div>
+        </form>
+
+        <!-- Route Map -->
+        {% if source_lat and destination_lat %}
+        <h5 class="mt-4">Route Map</h5>
+        <div id="map-route"></div>
+        {% endif %}
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        let sourceMap, destinationMap, routeMap;
+        let sourceMarker, destinationMarker;
+        let sourceSearchBox, destinationSearchBox;
+
+        function initSourceMap() {
+            sourceMap = new google.maps.Map(document.getElementById("map-source"), {
+                center: { lat: -34.397, lng: 150.644 },
+                zoom: 8,
+            });
+
+            // Add search box for source location
+            sourceSearchBox = new google.maps.places.SearchBox(document.getElementById("source-search"));
+            sourceMap.controls[google.maps.ControlPosition.TOP_LEFT].push(document.getElementById("source-search"));
+            
+            // Create a marker for source (clickable, not draggable)
+            sourceMarker = new google.maps.Marker({
+                map: sourceMap,
+                clickable: true,
+            });
+
+            // Set marker position when the user selects a location
+            sourceSearchBox.addListener("places_changed", function () {
+                const places = sourceSearchBox.getPlaces();
+                if (places.length === 0) return;
+
+                const place = places[0];
+                sourceMarker.setPosition(place.geometry.location);
+                sourceMap.setCenter(place.geometry.location);
+                document.getElementById("source-lat").value = place.geometry.location.lat();
+                document.getElementById("source-lng").value = place.geometry.location.lng();
+            });
+
+            // Set marker position on click
+            google.maps.event.addListener(sourceMap, "click", function (event) {
+                sourceMarker.setPosition(event.latLng);
+                document.getElementById("source-lat").value = event.latLng.lat();
+                document.getElementById("source-lng").value = event.latLng.lng();
+            });
+        }
+
+        function initDestinationMap() {
+            destinationMap = new google.maps.Map(document.getElementById("map-destination"), {
+                center: { lat: -34.397, lng: 150.644 },
+                zoom: 8,
+            });
+
+            // Add search box for destination location
+            destinationSearchBox = new google.maps.places.SearchBox(document.getElementById("destination-search"));
+            destinationMap.controls[google.maps.ControlPosition.TOP_LEFT].push(document.getElementById("destination-search"));
+
+            // Create a marker for destination (clickable, not draggable)
+            destinationMarker = new google.maps.Marker({
+                map: destinationMap,
+                clickable: true,
+            });
+
+            // Set marker position when the user selects a location
+            destinationSearchBox.addListener("places_changed", function () {
+                const places = destinationSearchBox.getPlaces();
+                if (places.length === 0) return;
+
+                const place = places[0];
+                destinationMarker.setPosition(place.geometry.location);
+                destinationMap.setCenter(place.geometry.location);
+                document.getElementById("destination-lat").value = place.geometry.location.lat();
+                document.getElementById("destination-lng").value = place.geometry.location.lng();
+            });
+
+            // Set marker position on click
+            google.maps.event.addListener(destinationMap, "click", function (event) {
+                destinationMarker.setPosition(event.latLng);
+                document.getElementById("destination-lat").value = event.latLng.lat();
+                document.getElementById("destination-lng").value = event.latLng.lng();
+            });
+        }
+
+        function initRouteMap() {
+            const routeMapOptions = {
+                center: { lat: parseFloat("{{ source_lat }}"), lng: parseFloat("{{ source_lng }}") },
+                zoom: 7,
+            };
+            routeMap = new google.maps.Map(document.getElementById("map-route"), routeMapOptions);
+        
+            const directionsService = new google.maps.DirectionsService();
+            const directionsRenderer = new google.maps.DirectionsRenderer();
+            directionsRenderer.setMap(routeMap);
+        
+            directionsService.route(
+                {
+                    origin: { lat: parseFloat("{{ source_lat }}"), lng: parseFloat("{{ source_lng }}") },
+                    destination: { lat: parseFloat("{{ destination_lat }}"), lng: parseFloat("{{ destination_lng }}") },
+                    travelMode: google.maps.TravelMode.DRIVING,
+                },
+                (response, status) => {
+                    if (status === "OK") {
+                        directionsRenderer.setDirections(response);
+                        visualizeCentroids(response.routes[0].overview_path);
+                    } else {
+                        alert("Could not display route: " + status);
+                    }
+                }
+            );
+        }
+        
+    
+        // Use these points in your `visualizeCentroids` function
+        function visualizeCentroids(path) {
+            // Given points array
+            const points = {{ points | tojson}};
+        
+            // Function to calculate the distance between two points in kilometers
+            function calculateDistance(point1, point2) {
+                const R = 6371; // Radius of the Earth in km
+                const dLat = (point2.lat - point1.lat) * Math.PI / 180;
+                const dLng = (point2.lng - point1.lng) * Math.PI / 180;
+                const a = 
+                    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) * 
+                    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                const distance = R * c; // Distance in km
+                return distance;
+            }
+        
+            // Iterate over the hard-coded points
+            points.forEach((point, index) => {
+                let nearestRoutePoint = null;
+                let minDistance = Infinity;
+        
+                // Find the nearest route point in the `overview_path`
+                path.forEach((routePoint) => {
+                    const distance = calculateDistance(point, {lat: routePoint.lat(), lng: routePoint.lng()});
+                    if (distance < minDistance) {
+                        nearestRoutePoint = routePoint;
+                        minDistance = distance;
+                    }
+                });
+        
+                // Skip if the nearest route point is more than 1 km away
+                if (minDistance > 1) {
+                    console.log(`Point ${index + 1} is more than 1 km away from the route. Skipping...`);
+                    return;
+                }
+        
+                // Place marker at the nearest route point
+                const marker = new google.maps.Marker({
+                    position: nearestRoutePoint,
+                    map: routeMap,
+                    title: `Nearest Route Point ${index + 1}`,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 5,
+                        fillColor: "#00FF00", // Green marker for route points
+                        fillOpacity: 0.8,
+                        strokeWeight: 0,
+                    },
+                });
+        
+                // Draw line from the hard-coded point to the nearest route point
+                const line = new google.maps.Polyline({
+                    path: [
+                        point,
+                        { lat: nearestRoutePoint.lat(), lng: nearestRoutePoint.lng() },
+                    ],
+                    geodesic: true,
+                    strokeColor: "#0000FF", // Blue line
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    map: routeMap,
+                });
+            });
+        }
+        
+        
+        
+        
+
+        document.addEventListener("DOMContentLoaded", () => {
+            initSourceMap();
+            initDestinationMap();
+
+            {% if source_lat and destination_lat %}
+            initRouteMap();
+            {% endif %}
+        });
+    </script>
+</body>
+</html>

@@ -17,16 +17,13 @@ app = Flask(__name__)
 load_dotenv()
 app.secret_key = os.getenv("SECRET_KEY", "fallback_secret_key")
 gmaps_api_key = os.getenv("API_KEY")
-host_sql = os.getenv("host")
-user_sql = os.getenv("user")
-database_sql = os.getenv("database")
 
 # Database connection function
 def get_db_connection():
     return pymysql.connect(
-        host=host_sql,
-        user=user_sql,
-        database=database_sql
+        host="localhost",
+        user="root",
+        database="buzzroute"
     )
 
 # Flask-WTF Forms
@@ -98,7 +95,7 @@ def update_existing_cluster(cursor, conn, cluster_id, new_centroid):
         conn.rollback()
         print(f"Error updating cluster {cluster_id}: {err}")
 
-def group_users_by_radius(user_coords, radius_km=5):
+def group_users_by_radius(user_coords, radius_km=1):
     """Groups users based on proximity and calculates centroids."""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -224,7 +221,16 @@ def form():
                 )
             )
             conn.commit()
-            flash("Form submitted successfully!")
+
+            # Fetch all user coordinates from the database
+            cursor.execute("SELECT source_lat, source_long FROM sample_table")
+            users = cursor.fetchall()
+            user_coords = [(float(lat), float(lng)) for lat, lng in users]
+
+            # Perform clustering and update the database
+            group_users_by_radius(user_coords)
+
+            flash("Form submitted and clustering completed successfully!")
             return redirect(url_for('form'))
         except pymysql.MySQLError as err:
             flash(f"Failed to submit data: {err}")
@@ -234,9 +240,36 @@ def form():
 
     return render_template("form.html", api_key=gmaps_api_key, time_slots=time_slots)
 
-@app.route('/about', methods=['GET'])
-def about():
-    return render_template("about.html")
+def fetch_points():
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    cursor.execute("SELECT centroid_lat, centroid_long FROM clusters")  
+    points = result = [{"lat": row[0], "lng": row[1]} for row in cursor.fetchall()]
+    cursor.close()
+    connection.close()
+    return points
+
+
+@app.route("/stops")
+def stops():
+    return render_template("stops.html", api_key = gmaps_api_key, points = fetch_points())
+
+@app.route("/create_route", methods=["POST"])
+def create_route():
+    source_lat = request.form.get("source_lat")
+    source_lng = request.form.get("source_lng")
+    destination_lat = request.form.get("destination_lat")
+    destination_lng = request.form.get("destination_lng")
+    points = fetch_points()
+    return render_template(
+        "stops.html",
+        api_key=gmaps_api_key,
+        source_lat=source_lat,
+        source_lng=source_lng,
+        destination_lat=destination_lat,
+        destination_lng=destination_lng,
+        points = points,
+    )
 
 @app.route('/results', methods=['GET'])
 def results():
